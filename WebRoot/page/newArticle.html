@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="https://cdn.static.runoob.com/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://cdn.static.runoob.com/libs/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.static.runoob.com/libs/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="//api.html5media.info/1.1.8/html5media.min.js"></script>
+
+    <!-- ******************************************** DEBUG ******************************************* -->
+    <script>
+        (function (view) {
+            "use strict";
+
+            view.URL = view.URL || view.webkitURL;
+
+            if (view.Blob && view.URL) {
+                try {
+                    new Blob;
+                    return;
+                } catch (e) {}
+            }
+
+            // Internally we use a BlobBuilder implementation to base Blob off of
+            // in order to support older browsers that only have BlobBuilder
+            var BlobBuilder = view.BlobBuilder || view.WebKitBlobBuilder || view.MozBlobBuilder || (function(view) {
+                    var
+                        get_class = function(object) {
+                            return Object.prototype.toString.call(object).match(/^\[object\s(.*)\]$/)[1];
+                        }
+                        , FakeBlobBuilder = function BlobBuilder() {
+                            this.data = [];
+                        }
+                        , FakeBlob = function Blob(data, type, encoding) {
+                            this.data = data;
+                            this.size = data.length;
+                            this.type = type;
+                            this.encoding = encoding;
+                        }
+                        , FBB_proto = FakeBlobBuilder.prototype
+                        , FB_proto = FakeBlob.prototype
+                        , FileReaderSync = view.FileReaderSync
+                        , FileException = function(type) {
+                            this.code = this[this.name = type];
+                        }
+                        , file_ex_codes = (
+                            "NOT_FOUND_ERR SECURITY_ERR ABORT_ERR NOT_READABLE_ERR ENCODING_ERR "
+                            + "NO_MODIFICATION_ALLOWED_ERR INVALID_STATE_ERR SYNTAX_ERR"
+                        ).split(" ")
+                        , file_ex_code = file_ex_codes.length
+                        , real_URL = view.URL || view.webkitURL || view
+                        , real_create_object_URL = real_URL.createObjectURL
+                        , real_revoke_object_URL = real_URL.revokeObjectURL
+                        , URL = real_URL
+                        , btoa = view.btoa
+                        , atob = view.atob
+
+                        , ArrayBuffer = view.ArrayBuffer
+                        , Uint8Array = view.Uint8Array
+
+                        , origin = /^[\w-]+:\/*\[?[\w\.:-]+\]?(?::[0-9]+)?/
+                        ;
+                    FakeBlob.fake = FB_proto.fake = true;
+                    while (file_ex_code--) {
+                        FileException.prototype[file_ex_codes[file_ex_code]] = file_ex_code + 1;
+                    }
+                    // Polyfill URL
+                    if (!real_URL.createObjectURL) {
+                        URL = view.URL = function(uri) {
+                            var
+                                uri_info = document.createElementNS("http://www.w3.org/1999/xhtml", "a")
+                                , uri_origin
+                                ;
+                            uri_info.href = uri;
+                            if (!("origin" in uri_info)) {
+                                if (uri_info.protocol.toLowerCase() === "data:") {
+                                    uri_info.origin = null;
+                                } else {
+                                    uri_origin = uri.match(origin);
+                                    uri_info.origin = uri_origin && uri_origin[1];
+                                }
+                            }
+                            return uri_info;
+                        };
+                    }
+                    URL.createObjectURL = function(blob) {
+                        var
+                            type = blob.type
+                            , data_URI_header
+                            ;
+                        if (type === null) {
+                            type = "application/octet-stream";
+                        }
+                        if (blob instanceof FakeBlob) {
+                            data_URI_header = "data:" + type;
+                            if (blob.encoding === "base64") {
+                                return data_URI_header + ";base64," + blob.data;
+                            } else if (blob.encoding === "URI") {
+                                return data_URI_header + "," + decodeURIComponent(blob.data);
+                            } if (btoa) {
+                                return data_URI_header + ";base64," + btoa(blob.data);
+                            } else {
+                                return data_URI_header + "," + encodeURIComponent(blob.data);
+                            }
+                        } else if (real_create_object_URL) {
+                            return real_create_object_URL.call(real_URL, blob);
+                        }
+                    };
+                    URL.revokeObjectURL = function(object_URL) {
+                        if (object_URL.substring(0, 5) !== "data:" && real_revoke_object_URL) {
+                            real_revoke_object_URL.call(real_URL, object_URL);
+                        }
+                    };
+                    FBB_proto.append = function(data/*, endings*/) {
+                        var bb = this.data;
+                        // decode data to a binary string
+                        if (Uint8Array && (data instanceof ArrayBuffer || data instanceof Uint8Array)) {
+                            var
+                                str = ""
+                                , buf = new Uint8Array(data)
+                                , i = 0
+                                , buf_len = buf.length
+                                ;
+                            for (; i < buf_len; i++) {
+                                str += String.fromCharCode(buf[i]);
+                            }
+                            bb.push(str);
+                        } else if (get_class(data) === "Blob" || get_class(data) === "File") {
+                            if (FileReaderSync) {
+                                var fr = new FileReaderSync;
+                                bb.push(fr.readAsBinaryString(data));
+                            } else {
+                                // async FileReader won't work as BlobBuilder is sync
+                                throw new FileException("NOT_READABLE_ERR");
+                            }
+                        } else if (data instanceof FakeBlob) {
+                            if (data.encoding === "base64" && atob) {
+                                bb.push(atob(data.data));
+                            } else if (data.encoding === "URI") {
+                                bb.push(decodeURIComponent(data.data));
+                            } else if (data.encoding === "raw") {
+                                bb.push(data.data);
+                            }
+                        } else {
+                            if (typeof data !== "string") {
+                                data += ""; // convert unsupported types to strings
+                            }
+                            // decode UTF-16 to binary string
+                            bb.push(unescape(encodeURIComponent(data)));
+                        }
+                    };
+                    FBB_proto.getBlob = function(type) {
+                        if (!arguments.length) {
+                            type = null;
+                        }
+                        return new FakeBlob(this.data.join(""), type, "raw");
+                    };
+                    FBB_proto.toString = function() {
+                        return "[object BlobBuilder]";
+                    };
+                    FB_proto.slice = function(start, end, type) {
+                        var args = arguments.length;
+                        if (args < 3) {
+                            type = null;
+                        }
+                        return new FakeBlob(
+                            this.data.slice(start, args > 1 ? end : this.data.length)
+                            , type
+                            , this.encoding
+                        );
+                    };
+                    FB_proto.toString = function() {
+                        return "[object Blob]";
+                    };
+                    FB_proto.close = function() {
+                        this.size = 0;
+                        delete this.data;
+                    };
+                    return FakeBlobBuilder;
+                }(view));
+
+            view.Blob = function(blobParts, options) {
+                var type = options ? (options.type || "") : "";
+                var builder = new BlobBuilder();
+                if (blobParts) {
+                    for (var i = 0, len = blobParts.length; i < len; i++) {
+                        if (Uint8Array && blobParts[i] instanceof Uint8Array) {
+                            builder.append(blobParts[i].buffer);
+                        }
+                        else {
+                            builder.append(blobParts[i]);
+                        }
+                    }
+                }
+                var blob = builder.getBlob(type);
+                if (!blob.slice && blob.webkitSlice) {
+                    blob.slice = blob.webkitSlice;
+                }
+                return blob;
+            };
+
+            var getPrototypeOf = Object.getPrototypeOf || function(object) {
+                    return object.__proto__;
+                };
+            view.Blob.prototype = getPrototypeOf(new view.Blob());
+        }(typeof self !== "undefined" && self || typeof window !== "undefined" && window || this.content || this));
+    </script>
+    <script>
+        var saveAs = saveAs || function (e) {
+                "use strict";
+                if (typeof e === "undefined" || typeof navigator !== "undefined" && /MSIE [1-9]\./.test(navigator.userAgent)) {
+                    return
+                }
+                var t = e.document, n = function () {
+                    return e.URL || e.webkitURL || e
+                }, r = t.createElementNS("http://www.w3.org/1999/xhtml", "a"), o = "download" in r, a = function (e) {
+                    var t = new MouseEvent("click");
+                    e.dispatchEvent(t)
+                }, i = /constructor/i.test(e.HTMLElement) || e.safari, f = /CriOS\/[\d]+/.test(navigator.userAgent), u = function (t) {
+                    (e.setImmediate || e.setTimeout)(function () {
+                        throw t
+                    }, 0)
+                }, s = "application/octet-stream", d = 1e3 * 40, c = function (e) {
+                    var t = function () {
+                        if (typeof e === "string") {
+                            n().revokeObjectURL(e)
+                        } else {
+                            e.remove()
+                        }
+                    };
+                    setTimeout(t, d)
+                }, l = function (e, t, n) {
+                    t = [].concat(t);
+                    var r = t.length;
+                    while (r--) {
+                        var o = e["on" + t[r]];
+                        if (typeof o === "function") {
+                            try {
+                                o.call(e, n || e)
+                            } catch (a) {
+                                u(a)
+                            }
+                        }
+                    }
+                }, p = function (e) {
+                    if (/^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(e.type)) {
+                        return new Blob([String.fromCharCode(65279), e], {type: e.type})
+                    }
+                    return e
+                }, v = function (t, u, d) {
+                    if (!d) {
+                        t = p(t)
+                    }
+                    var v = this, w = t.type, m = w === s, y, h = function () {
+                        l(v, "writestart progress write writeend".split(" "))
+                    }, S = function () {
+                        if ((f || m && i) && e.FileReader) {
+                            var r = new FileReader;
+                            r.onloadend = function () {
+                                var t = f ? r.result : r.result.replace(/^data:[^;]*;/, "data:attachment/file;");
+                                var n = e.open(t, "_blank");
+                                if (!n) e.location.href = t;
+                                t = undefined;
+                                v.readyState = v.DONE;
+                                h()
+                            };
+                            r.readAsDataURL(t);
+                            v.readyState = v.INIT;
+                            return
+                        }
+                        if (!y) {
+                            y = n().createObjectURL(t)
+                        }
+                        if (m) {
+                            e.location.href = y
+                        } else {
+                            var o = e.open(y, "_blank");
+                            if (!o) {
+                                e.location.href = y
+                            }
+                        }
+                        v.readyState = v.DONE;
+                        h();
+                        c(y)
+                    };
+                    v.readyState = v.INIT;
+                    if (o) {
+                        y = n().createObjectURL(t);
+                        setTimeout(function () {
+                            r.href = y;
+                            r.download = u;
+                            a(r);
+                            h();
+                            c(y);
+                            v.readyState = v.DONE
+                        });
+                        return
+                    }
+                    S()
+                }, w = v.prototype, m = function (e, t, n) {
+                    return new v(e, t || e.name || "download", n)
+                };
+                if (typeof navigator !== "undefined" && navigator.msSaveOrOpenBlob) {
+                    return function (e, t, n) {
+                        t = t || e.name || "download";
+                        if (!n) {
+                            e = p(e)
+                        }
+                        return navigator.msSaveOrOpenBlob(e, t)
+                    }
+                }
+                w.abort = function () {
+                };
+                w.readyState = w.INIT = 0;
+                w.WRITING = 1;
+                w.DONE = 2;
+                w.error = w.onwritestart = w.onprogress = w.onwrite = w.onabort = w.onerror = w.onwriteend = null;
+                return m
+            }(typeof self !== "undefined" && self || typeof window !== "undefined" && window || this.content);
+        if (typeof module !== "undefined" && module.exports) {
+            module.exports.saveAs = saveAs
+        } else if (typeof define !== "undefined" && define !== null && define.amd !== null) {
+            define("FileSaver.js", function () {
+                return saveAs
+            })
+        }
+    </script>
+    <!-- ******************************************** DEBUG END *************************************** -->
+
+    <style>.pStyle {text-indent: 2em;}</style>
+    <style type="text/css">
+        .comments {
+            width:100%;/*自动适应父布局宽度*/
+            overflow:auto;
+            word-break:break-all;
+            /*在ie中解决断行问题(防止自动变为在一行显示，主要解决ie兼容问题，ie8中当设宽度为100%时，文本域类容超过一行时，
+            当我们双击文本内容就会自动变为一行显示，所以只能用ie的专有断行属性“word-break或word-wrap”控制其断行)*/
+        }
+        html{
+            font-size: 62.5%;
+        }
+        input::input-placeholder{text-align: center;}
+        .imgDiv{text-align:center;}
+        .divBorder{padding:3px;margin-top:5px;border:1px solid #CCCCCC}
+        .btnBorder{margin-top:2px;}
+        .btnMarginLeft{margin-left: 5px}
+        .divInsert{text-align:right;}
+        .divTextLeft{text-align:left;}
+        .displayInline{display:inline-block;}
+        .divTicket{
+            width: 80%;
+        }
+        .pVideoNo{
+            margin-left: calc(50% - 240px);
+            width: 480px;
+            height:270px;
+            background: #737373;
+            color: white;
+            font-size: 20px;
+            padding-top: 125px;
+        }
+    </style>
+    <!-- input type=file 样式 -->
+    <style>
+        .a-upload {
+            padding: 0px 10px;
+            height: 30px;
+            line-height: 30px;
+            position: relative;
+            cursor: pointer;
+            color: #888;
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            display: inline-block;
+            *display: inline;
+            *zoom: 1
+        }
+
+        .a-upload  input {
+            position: absolute;
+            font-size: 100px;
+            right: 0;
+            top: 0;
+            opacity: 0;
+            filter: alpha(opacity=0);
+            cursor: pointer
+        }
+
+        .a-upload:hover {
+            color: #444;
+            background: #eee;
+            border-color: #ccc;
+            text-decoration: none
+        }
+    </style>
+    <!--获取当前浏览器类型-->
+    <script>
+        $(document).ready(function () {
+            var browser = {
+                versions: function() {
+                    var u = navigator.userAgent,
+                        app = navigator.appVersion;
+                    return {
+                        mobile: !!u.match(/AppleWebKit.*Mobile.*/),
+                        ios: !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/),
+                        android: u.indexOf("Android") > -1 || u.indexOf("Linux") > -1,
+                        iPhone: u.indexOf("iPhone") > -1,
+                        iPad: u.indexOf("iPad") > -1
+                    };
+                } (),
+                language: (navigator.browserLanguage || navigator.language).toLowerCase()
+            };
+            if(browser.versions.mobile){
+
+            }
+        });
+    </script>
+
+    <script>
+        /**
+         * 生成菜单
+         * */
+        function createMenu(tagId) {
+            //初始化
+            var div = $("<div class='btn-group'></div>");
+
+            div.append("<button id='btnAddText' tag="+tagId+" onclick='addText($(this))' type='button' class='btn btn-xs btn-default'>文字</button>");
+            div.append("<button id='btnAddImg' tag="+tagId+" onclick='addImg($(this))' type='button' class='btn btn-xs btn-default'>图片</button>");
+            div.append("<button id='btnAddGood' tag="+tagId+" onclick='addGood($(this))' type='button' class='btn btn-xs btn-default'>商品</button>");
+            div.append("<button id='btnAddVideo' tag="+tagId+" onclick='addVideo($(this))' type='button' class='btn btn-xs btn-default'>视频</button>");
+            div.append("<button id='btnAddTicket' tag="+tagId+" onclick='addTicket($(this))' type='button' class='btn btn-xs btn-default'>优惠券</button>");
+            div.append("<button id='btnAddSplitline' tag="+tagId+" onclick='AddSplitline($(this))' type='button' class='btn btn-xs btn-default'>分割线</button>");
+            return div.html();
+        }
+        /**
+         * 删除元素
+         * */
+        function deleteEle(divDelId) {
+            $("#"+divDelId).remove();
+        }
+        /**
+         * 上移元素
+         * */
+        function upEle(divUpId) {
+            console.info("up id: " + divUpId);
+            //当前元素
+            var curEle = $("#"+divUpId);
+            //前一个元素
+            var preEle = curEle.prev();
+            console.info("前一个元素id:" + preEle.attr("id"));
+            //移动元素
+            if(preEle.attr("id") != "divTitle"){
+                curEle.insertBefore(preEle);
+            }
+        }
+        /**
+         * 下移元素
+         * */
+        function downEle(divDownId) {
+            console.info("down id: " + divDownId);
+            //当前元素
+            var curEle = $("#"+divDownId);
+            //后一个元素
+            var aftEle = curEle.next();
+            console.info("后一个元素id:" + aftEle.attr("id"));
+            //移动元素
+            if(typeof(aftEle.attr("id")) == "undefined"){
+                console.info("这是最后一个元素");
+            }else{
+                aftEle.insertBefore(curEle);
+            }
+        }
+        /**
+         * 选择图片
+         * */
+        function selectImg() {
+            //生成图片模态编辑框
+            $("#myModalLabel").text("选择图片");
+            //模态框体
+            var bodyModal = $("#modalBody");
+            var p = $("<p>请选择图片文件或者添加图片URL:</p>");
+            //div 选择图片
+            var div1 = $("<div class='input-group' style='margin-left:20px;margin-top: 20px;'></div>");
+            var span1 = $("<span class='input-group-addon'>选择文件:</span>");
+            var div1_1 = $("<div class='form-control' style='padding: 0px;padding-bottom: 0px;'></div>");
+            var a1 = $("<a href='javascript:;' class='a-upload' style='margin-top: 1px;margin-left: 10px;float: left'></a>");
+            var input1 = $("<input type='file' class='' accept='image/png,image/jpeg' id='inputfile'>");
+            var p_a1_1 = $("<p>点击这里选择图片文件</p>");
+            var span2 = $("<span style='float: left;margin-left: 10px;margin-top: 6px;max-width: 100px;'>未选择文件</span>");
+            var btn1 = $("<button type='button' id='btnClear' class='btn btn-sm btn-default' style='float: right;margin-top: 1px;margin-right: 5px;'>清除</button>");
+            //div 图片URL
+            var div2 = $("<div class='input-group'  style='margin-left:20px;margin-top: 10px'></div>");
+            var span2_1 = $("<span class='input-group-addon'>图片URL:</span>");
+            var input2_1 = $("<input id='inputImgUrl' type='text' class='form-control' placeholder=''>");
+
+            a1.append(input1);
+            a1.append(p_a1_1);
+            div1_1.append(a1);
+            div1_1.append(span2)
+            div1_1.append(btn1);
+            div1.append(span1);
+            div1.append(div1_1);
+
+            div2.append(span2_1);
+            div2.append(input2_1);
+
+            bodyModal.append(p);
+            bodyModal.append(div1);
+            bodyModal.append(div2)
+
+            input1.bind("change",function () {
+                fileChanged($(this));
+            });
+            btn1.bind("click",function () {
+                fileClear($(this));
+            });
+
+            $("#myModal").modal();
+        }
+        /**
+         * input type=file 文件改变监听
+         * */
+        function fileChanged(e) {
+            var files = e.prop("files");
+            e.parent().parent("div").children("span").text(e.val());
+        }
+        /**
+         * 清除文件
+         * */
+        function fileClear(e) {
+            var inputFile = e.prev().prev().children("input");
+            inputFile.after(inputFile.clone(true).val(""));
+            inputFile.remove();
+            e.prev().text("未选择文件");
+        }
+        /**
+         * 编辑商品
+         * */
+        function editGood() {
+            //生成编辑商品模态编辑框
+            $("#myModalLabel").text("编辑商品信息");
+            //模态框体
+            var bodyModal = $("#modalBody");
+            //div 选择图片
+            var p1 = $("<p>请选择商品图片文件或者添加商品图片URL:</p>");
+            var div1 = $("<div class='input-group' style='margin-left:20px;margin-top: 0px;'></div>");
+            var span1 = $("<span class='input-group-addon'>选择文件:</span>");
+            var div1_1 = $("<div class='form-control' style='padding: 0px;padding-bottom: 0px;'></div>");
+            var a1 = $("<a href='javascript:;' class='a-upload' style='margin-top: 1px;margin-left: 10px;float: left'></a>");
+            var input1 = $("<input type='file' class='' accept='image/png,image/jpeg' id='inputfile'>"+"点击这里选择图片文件");
+            var p_a1_1 = $("<p>点击这里选择图片文件</p>");
+            var span2 = $("<span style='float: left;margin-left: 10px;margin-top: 6px;max-width: 100px'>未选择文件</span>");
+            var btn1 = $("<button type='button' id='btnClear' class='btn btn-sm btn-default' style='float: right;margin-top: 1px;margin-right: 5px;'>清除</button>");
+            //div 图片URL
+            var div2 = $("<div class='input-group'  style='margin-left:20px;margin-top: 10px;margin-bottom: 20px;'></div>");
+            var span2_1 = $("<span class='input-group-addon'>图片URL:</span>");
+            var input2_1 = $("<input id='inputImgUrl type='text' class='form-control' placeholder='URL'>");
+            //div 商品标题
+            var p2 = $("<p>请编辑商品标题:</p>");
+            var div3 = $("<div class='input-group'  style='margin-left:20px;margin-top: 0px;margin-bottom: 20px;'></div>");
+            var span3_1 = $("<span class='input-group-addon'>商品标题:</span>");
+            var input3_1 = $("<input id='inputGoodTitle type='text' class='form-control' placeholder='商品标题'>");
+            //div 商品价格
+            var p3 = $("<p>请编辑商品标题:</p>");
+            var div4 = $("<div class='input-group'  style='margin-left:20px;margin-top: 0px;margin-bottom: 20px;'></div>");
+            var span4_1 = $("<span class='input-group-addon'>商品价格:</span>");
+            var input4_1 = $("<input id='inputGoodPrice type='text' class='form-control' placeholder='¥00.00'>");
+
+            a1.append(input1);
+            a1.append(p_a1_1);
+            div1_1.append(a1);
+            div1_1.append(span2)
+            div1_1.append(btn1);
+            div1.append(span1);
+            div1.append(div1_1);
+
+            div2.append(span2_1);
+            div2.append(input2_1);
+
+            div3.append(span3_1);
+            div3.append(input3_1);
+
+            div4.append(span4_1);
+            div4.append(input4_1);
+
+            bodyModal.append(p1);
+            bodyModal.append(div1);
+            bodyModal.append(div2);
+            bodyModal.append(p2);
+            bodyModal.append(div3);
+            bodyModal.append(p3);
+            bodyModal.append(div4);
+
+            input1.bind("change",function () {
+                fileChanged($(this));
+            });
+            btn1.bind("click",function () {
+                fileClear($(this));
+            });
+
+            $("#myModal").modal();
+        }
+        /**
+         * 编辑视频
+         * */
+        function editVideo() {
+            //生成编辑商品模态编辑框
+            $("#myModalLabel").text("编辑商品信息");
+            //模态框体
+            var bodyModal = $("#modalBody");
+            var p = $("<p>请输入视频URL:</p>");
+            //div 视频URL
+            var div = $("<div class='input-group'  style='margin-left:20px;margin-top: 10px'></div>");
+            var span = $("<span class='input-group-addon'>视频URL:</span>");
+            var input = $("<input id='inputVideoUrl' type='text' class='form-control' placeholder='URL'>");
+
+            bodyModal.append(p);
+            div.append(span);
+            div.append(input);
+            bodyModal.append(div);
+
+            $("#myModal").modal();
+        }
+        /**
+         * 编辑优惠券
+         * */
+        function editTicket() {
+            //生成编辑优惠券模态编辑框
+            $("#myModalLabel").text("编辑优惠券信息");
+            //模态框体
+            var bodyModal = $("#modalBody");
+            var p = $("<p>请输入优惠券面额、使用条件、领取地址:</p>");
+
+            //div 优惠券面值
+            var div = $("<div class='input-group'  style='margin-left:20px;margin-top: 10px'></div>");
+            var span = $("<span class='input-group-addon'>优惠券面额:&emsp;&emsp;</span>");
+            var input = $("<input id='inputTicketValue' type='text' class='form-control' placeholder='¥00'>");
+            //div 优惠券使用限制
+            var div2 = $("<div class='input-group'  style='margin-left:20px;margin-top: 10px'></div>");
+            var span2 = $("<span class='input-group-addon'>优惠券使用条件:</span>");
+            var input2 = $("<input id='inputTicketLimit' type='text' class='form-control' placeholder='满¥00可用'>");
+            //div 优惠券领取地址
+            var div3 = $("<div class='input-group'  style='margin-left:20px;margin-top: 10px'></div>");
+            var span3 = $("<span class='input-group-addon'>优惠券领取地址:</span>");
+            var input3 = $("<input id='inputTicketUrl' type='text' class='form-control' placeholder='URL'>");
+
+            bodyModal.append(p);
+            div.append(span);
+            div.append(input);
+            bodyModal.append(div);
+            div2.append(span2);
+            div2.append(input2);
+            bodyModal.append(div2);
+            div3.append(span3);
+            div3.append(input3);
+            bodyModal.append(div3);
+
+
+            $("#myModal").modal();
+        }
+        /****************************************************************************/
+        /**
+         *插入文字
+         */
+        function addText(e){
+            if(e.attr("tag") == 0){
+                $("#btnTitleInsert").popover("hide");
+            }else{
+                $("#"+e.attr("tag")).popover("hide");
+            }
+            //组装文字框
+            var textNum = $("#divContentTwo").find("div[type='myText']").length;
+            var textDiv = $("<div type='myText' class='divBorder'></div>");
+                textDiv.attr("id","divText"+textNum);
+            var textArea = $("<textarea class='comments' rows='10' cols='10' placeholder='请输入内容'></textarea>");//"+"divText"+textNum+"
+                textArea.attr("id","textarea"+textNum);
+            var divBtn = $("<div class='divInsert'></div>");
+            var btnInsert = $("<button type='button' class='btn btn-xs btn-info btnBorder'>插入</button>");
+                btnInsert.attr("id","btnTextInsert"+textNum);
+            var btnDelete = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>删除</button>");
+                btnDelete.attr("id","btnTextDelete"+textNum);
+            var btnUp = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>上移</button>");
+                btnUp.attr("id","btnTextUp"+textNum);
+            var btnDown = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>下移</button>");
+                btnDown.attr("id","btnTextDown"+textNum);
+            textDiv.append(textArea);
+            divBtn.append(btnInsert);
+            divBtn.append(btnDelete);
+            divBtn.append(btnUp);
+            divBtn.append(btnDown);
+            textDiv.append(divBtn);
+            //插入 # 设置弹出菜单
+            btnInsert.popover({
+                trigger:"manual",
+                content:createMenu('btnTextInsert'+textNum),
+                container:"body",
+                placement:"bottom",
+                title:"插入类型",
+                html:"true"
+            }).bind("click", function () {
+                console.info("btnInsert click ID:" + $(this).attr("id"));
+                $(this).popover("toggle");
+            });
+            //删除 # 删除元素
+            btnDelete.bind("click",function(){
+                deleteEle("divText"+textNum);
+            });
+            //上移 # 元素向上移动
+            btnUp.bind("click",function () {
+                upEle("divText"+textNum);
+            })
+            //下移 # 元素向下移动
+            btnDown.bind("click",function () {
+                downEle("divText"+textNum);
+            })
+
+            if(e.attr("tag") == 0){
+                $("#divTitle").after(textDiv);
+            }else{
+                $("#"+e.attr("tag")).parent().parent("div").after(textDiv);
+            }
+        }
+
+        /**
+         *插入图片
+         */
+        function addImg(e){
+            if(e.attr("tag") == 0){
+                $("#btnTitleInsert").popover("hide");
+            }else{
+                $("#"+e.attr("tag")).popover("hide");
+            }
+
+            //组装图片框
+            var imgNum = $("#divContentTwo").find("div[type='myImg']").length;
+            var imgDiv = $("<div type='myImg' class='divBorder imgDiv'></div>");
+                imgDiv.attr("id","divImg"+imgNum);
+                //http://localhost:49491/untitled2/images/1.jpg
+                //http://www.51ztzj.com/upload/image/20160924/2001609245_1366x768.jpg
+            var img = $("<img alt='未选择图片' src='' class='img-thumbnail img-responsive'/>");
+            img.attr("id","img"+imgNum);
+            //下方操作菜单
+            var divBtn = $("<div class='divInsert'></div>");
+            var btnSelectImg = $("<button type='button' class='btn btn-xs btn-info btnBorder'>选择图片</button>");
+                btnSelectImg.attr("id","btnSelectImg"+imgNum);
+            var btnInsert = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>插入</button>");
+                btnInsert.attr("id","btnImgInsert"+imgNum);
+            var btnDelete = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>删除</button>");
+                btnDelete.attr("id","btnImgDelete"+imgNum);
+            var btnUp = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>上移</button>");
+                btnUp.attr("id","btnImgUp"+imgNum);
+            var btnDown = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>下移</button>");
+                btnDown.attr("id","btnImgDown"+imgNum);
+            imgDiv.append(img);
+            divBtn.append(btnSelectImg);
+            divBtn.append(btnInsert);
+            divBtn.append(btnDelete);
+            divBtn.append(btnUp);
+            divBtn.append(btnDown);
+            imgDiv.append(divBtn);
+            //选择图片 # 弹出模态框
+            btnSelectImg.bind("click",function () {
+                $("#myModal").attr("from",$(this).parent().prev().attr("id"));
+                selectImg();
+            });
+            //插入 # 设置弹出菜单
+            btnInsert.popover({
+                trigger:"manual",
+                content:createMenu('btnImgInsert'+imgNum),
+                container:"body",
+                placement:"bottom",
+                title:"插入类型",
+                html:"true"
+            }).bind("click", function () {
+                console.info("btnInsert click ID:" + $(this).attr("id"));
+                $(this).popover("toggle");
+            });
+            //删除 # 删除元素
+            btnDelete.bind("click",function(){
+                deleteEle("divImg"+imgNum);
+            });
+            //上移 # 元素向上移动
+            btnUp.bind("click",function () {
+                upEle("divImg"+imgNum);
+            });
+            //下移 # 元素向下移动
+            btnDown.bind("click",function () {
+                downEle("divImg"+imgNum);
+            });
+
+            if(e.attr("tag") == 0){
+                $("#divTitle").after(imgDiv);
+            }else{
+                $("#"+e.attr("tag")).parent().parent("div").after(imgDiv);
+            }
+        }
+
+        /**
+         *插入商品
+         */
+        function addGood(e){
+            if(e.attr("tag") == 0){
+                $("#btnTitleInsert").popover("hide");
+            }else{
+                $("#"+e.attr("tag")).popover("hide");
+            }
+
+            //组装商品框
+            var goodNum = $("#divContentTwo").find("div[type='myGood']").length;
+            var goodDiv = $("<div type='myGood' class='divBorder imgDiv'></div>");
+            goodDiv.attr("id","divGood"+goodNum);
+            //商品View
+            var div = $("<div style='background: #F7F7F7'></div>");
+                div.attr("id","divGood"+goodNum+"_"+goodNum);
+            var goodImg = $("<img alt='商品图片' width='100px' height='100px' src='http://img01.taobaocdn.com/bao/uploaded/i1/TB1pm_rOXXXXXbQXXXXXXXXXXXX_!!0-item_pic.jpg' class='img-responsive img-thumbnail displayInline'/>");
+            var divInner = $("<div class='displayInline divTextLeft' style='vertical-align: middle;width: calc(100% - 105px);'></div>");
+            var goodTitle = $("<p class='pStyle' style='text-overflow: ellipsis; overflow: hidden; white-space: nowrap;width:100%;'>韩都衣舍2017韩版女装春新款外套中长款连帽宽松加绒卫衣</p>");
+            var goodPrice = $("<p class='pStyle' style='color: #AC1D1B;text-overflow: ellipsis; overflow: hidden; white-space: nowrap;width:100%;'><strong>¥97.00</strong></p>");
+            divInner.append(goodTitle);
+            divInner.append(goodPrice);
+            //下方操作菜单
+            var divBtn = $("<div class='divInsert'></div>");
+            var btnEditGood = $("<button type='button' class='btn btn-xs btn-info btnBorder'>编辑商品</button>");
+            btnEditGood.attr("id","btnEditGood"+goodNum);
+            var btnInsert = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>插入</button>");
+            btnInsert.attr("id","btnGoodInsert"+goodNum);
+            var btnDelete = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>删除</button>");
+            btnDelete.attr("id","btnGoodDelete"+goodNum);
+            var btnUp = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>上移</button>");
+            btnUp.attr("id","btnGoodUp"+goodNum);
+            var btnDown = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>下移</button>");
+            btnDown.attr("id","btnGoodDown"+goodNum);
+
+            div.append(goodImg);
+            div.append(divInner);
+            goodDiv.append(div);
+            divBtn.append(btnEditGood);
+            divBtn.append(btnInsert);
+            divBtn.append(btnDelete);
+            divBtn.append(btnUp);
+            divBtn.append(btnDown);
+            goodDiv.append(divBtn);
+
+            //编辑商品 # 弹出模态框
+            btnEditGood.bind("click",function () {
+                $("#myModal").attr("from",$(this).parent().prev().attr("id"));
+                editGood();
+            });
+            //插入 # 设置弹出菜单
+            btnInsert.popover({
+                trigger:"manual",
+                content:createMenu('btnGoodInsert'+goodNum),
+                container:"body",
+                placement:"bottom",
+                title:"插入类型",
+                html:"true"
+            }).bind("click", function () {
+                console.info("btnInsert click ID:" + $(this).attr("id"));
+                $(this).popover("toggle");
+            });
+            //删除 # 删除元素
+            btnDelete.bind("click",function(){
+                deleteEle("divGood"+goodNum);
+            });
+            //上移 # 元素向上移动
+            btnUp.bind("click",function () {
+                upEle("divGood"+goodNum);
+            });
+            //下移 # 元素向下移动
+            btnDown.bind("click",function () {
+                downEle("divGood"+goodNum);
+            });
+
+            if(e.attr("tag") == 0){
+                $("#divTitle").after(goodDiv);
+            }else{
+                $("#"+e.attr("tag")).parent().parent("div").after(goodDiv);
+            }
+        }
+
+        /**
+         *插入视频
+         */
+        function addVideo(e){
+            if(e.attr("tag") == 0){
+                $("#btnTitleInsert").popover("hide");
+            }else{
+                $("#"+e.attr("tag")).popover("hide");
+            }
+            //http://220.167.105.121/170/2/11/acloud/151672/letv.v.yinyuetai.com/he.yinyuetai.com/uploads/videos/common/6609014F06AE1C8E99DE142502A2B157.flv?crypt=95aa7f2e98550&b=1314&nlh=3072&nlt=45&bf=6000&p2p=1&video_type=flv&termid=0&tss=no&geo=CN-23-323-1&platid=0&splatid=0&its=0&qos=5&fcheck=0&proxy=3062324601,2101603530,3683272595&uid=3063271287.rp&keyitem=GOw_33YJAAbXYE-cnQwpfLlv_b2zAkYctFVqe5bsXQpaGNn3T1-vhw..&ntm=1447949400&nkey=55c24f4c47dd315085c383e07750f67e&nkey2=3344c026a5c147651522c75bc51fb700&sc=0e90a16b75f7bc55&br=3136&vid=782863&aid=1559&area=KR&vst=0&ptp=mv&rd=yinyuetai.com?sc=0e90a16b75f7bc55&errc=0&gn=1065&buss=106551&cips=182.149.207.119&lersrc=MTI1Ljg5Ljc0LjE3MQ==&tag=yinyuetai&cuhost=letv.v.yinyuetai.com&cuid=151672&flw3x=0&sign=coopdown&fext=.flv&br=3136&ptp=mv&rd=yinyuetai.com
+            //组装视频框
+            var videoNum = $("#divContentTwo").find("div[type='myVideo']").length;
+            var videoDiv = $("<div type='myVideo' class='divBorder imgDiv'></div>");
+            videoDiv.attr("id","divVideo"+videoNum);
+            //视频View
+            var div = $("<p id='pNoVideo' class='pVideoNo'>未添加视频</p>");
+                div.attr("order",videoNum);
+
+            //下方操作菜单
+            var divBtn = $("<div class='divInsert'></div>");
+            var btnEditVideo = $("<button type='button' class='btn btn-xs btn-info btnBorder'>更改视频</button>");
+            btnEditVideo.attr("id","btnEditVideo"+videoNum);
+            var btnInsert = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>插入</button>");
+            btnInsert.attr("id","btnVideoInsert"+videoNum);
+            var btnDelete = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>删除</button>");
+            btnDelete.attr("id","btnVideoDelete"+videoNum);
+            var btnUp = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>上移</button>");
+            btnUp.attr("id","btnVideoUp"+videoNum);
+            var btnDown = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>下移</button>");
+            btnDown.attr("id","btnVideoDown"+videoNum);
+
+            videoDiv.append(div);
+            divBtn.append(btnEditVideo);
+            divBtn.append(btnInsert);
+            divBtn.append(btnDelete);
+            divBtn.append(btnUp);
+            divBtn.append(btnDown);
+            videoDiv.append(divBtn);
+
+            //更改视频 # 弹出模态框
+            btnEditVideo.bind("click",function () {
+                $("#myModal").attr("from",$(this).parent().prev().attr("id"));
+                console.info("更改视频:" + $(this).parent().prev().attr("id"));
+                editVideo();
+            });
+            //插入 # 设置弹出菜单
+            btnInsert.popover({
+                trigger:"manual",
+                content:createMenu('btnVideoInsert'+videoNum),
+                container:"body",
+                placement:"bottom",
+                title:"插入类型",
+                html:"true"
+            }).bind("click", function () {
+                console.info("btnInsert click ID:" + $(this).attr("id"));
+                $(this).popover("toggle");
+            });
+            //删除 # 删除元素
+            btnDelete.bind("click",function(){
+                deleteEle("divVideo"+videoNum);
+            });
+            //上移 # 元素向上移动
+            btnUp.bind("click",function () {
+                upEle("divVideo"+videoNum);
+            });
+            //下移 # 元素向下移动
+            btnDown.bind("click",function () {
+                downEle("divVideo"+videoNum);
+            });
+
+            if(e.attr("tag") == 0){
+                $("#divTitle").after(videoDiv);
+            }else{
+                $("#"+e.attr("tag")).parent().parent("div").after(videoDiv);
+            }
+        }
+
+        /**
+         *插入优惠券
+         */
+        function addTicket(e){
+            if(e.attr("tag") == 0){
+                $("#btnTitleInsert").popover("hide");
+            }else{
+                $("#"+e.attr("tag")).popover("hide");
+            }
+            //组装优惠券框
+            var ticketNum = $("#divContentTwo").find("div[type='myTicket']").length;
+            var ticketDiv = $("<div type='myTicket' class='divBorder imgDiv'></div>");
+            ticketDiv.attr("id","divTicket"+ticketNum);
+            //优惠券View
+            var div = $("<div style='background: #E34242;width: 80%;margin-left: 10%;border-radius:8px;padding: 5%;}' class='img-rounded'></div>");
+                div.attr("id","ticket"+ticketNum);
+            var divIcon = $("<img src='/untitled2/images/ticket_icon.png' style='max-width: 37.6%' class='img-responsive'/>");
+            var divInfo = $("<div style='float:right ;margin-right: 10%;height: 100%'></div>");
+            var ticketValue = $("<p style='color: white;font-size: 3vw;padding-top: 20%;'>¥00</p>");
+                ticketValue.attr("id","ticketValue" + ticketNum);
+                ticketValue.attr("type","ticket1");
+            var ticketLimit = $("<p style='color: white;font-size: 2vw;'>满¥00可用</p>");
+                ticketLimit.attr("id","ticketLimit" + ticketNum);
+                ticketLimit.attr("type","ticket2");
+
+            divInfo.append(ticketValue);
+            divInfo.append(ticketLimit);
+            div.append(divInfo);
+            div.append(divIcon);
+
+            //下方操作菜单
+            var divBtn = $("<div class='divInsert'></div>");
+            var btnEditTicket = $("<button type='button' class='btn btn-xs btn-info btnBorder'>编辑优惠券</button>");
+            btnEditTicket.attr("id","btnEditTicket"+ticketNum);
+            var btnInsert = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>插入</button>");
+            btnInsert.attr("id","btnTicketInsert"+ticketNum);
+            var btnDelete = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>删除</button>");
+            btnDelete.attr("id","btnTicketDelete"+ticketNum);
+            var btnUp = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>上移</button>");
+            btnUp.attr("id","btnTicketUp"+ticketNum);
+            var btnDown = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>下移</button>");
+            btnDown.attr("id","btnTicketDown"+ticketNum);
+
+            ticketDiv.append(div);
+            divBtn.append(btnEditTicket);
+            divBtn.append(btnInsert);
+            divBtn.append(btnDelete);
+            divBtn.append(btnUp);
+            divBtn.append(btnDown);
+            ticketDiv.append(divBtn);
+
+            //编辑优惠券 # 弹出模态框
+            btnEditTicket.bind("click",function () {
+                $("#myModal").attr("from",$(this).parent().parent().attr("id"));
+                editTicket();
+            });
+            //插入 # 设置弹出菜单
+            btnInsert.popover({
+                trigger:"manual",
+                content:createMenu('btnTicketInsert'+ticketNum),
+                container:"body",
+                placement:"bottom",
+                title:"插入类型",
+                html:"true"
+            }).bind("click", function () {
+                console.info("btnInsert click ID:" + $(this).attr("id"));
+                $(this).popover("toggle");
+            });
+            //删除 # 删除元素
+            btnDelete.bind("click",function(){
+                deleteEle("divTicket"+ticketNum);
+            });
+            //上移 # 元素向上移动
+            btnUp.bind("click",function () {
+                upEle("divTicket"+ticketNum);
+            });
+            //下移 # 元素向下移动
+            btnDown.bind("click",function () {
+                downEle("divTicket"+ticketNum);
+            });
+
+            if(e.attr("tag") == 0){
+                $("#divTitle").after(ticketDiv);
+            }else{
+                $("#"+e.attr("tag")).parent().parent("div").after(ticketDiv);
+            }
+        }
+
+        /**
+         *插入分割线
+         */
+        function AddSplitline(e){
+            if(e.attr("tag") == 0){
+                $("#btnTitleInsert").popover("hide");
+            }else{
+                $("#"+e.attr("tag")).popover("hide");
+            }
+            //组装分割线框
+            var splitlineNum = $("#divContentTwo").find("div[type='mySplitline']").length;
+            var splitlineDiv = $("<div type='mySplitline' class='divBorder imgDiv'></div>");
+            splitlineDiv.attr("id","divSplitline"+splitlineNum);
+            //分割线View
+            var line = $("<p style='white-space:nowrap;overflow:hidden;margin-left: 5px;margin-right: 5px;'></p>");
+                var text = "";
+                for(var i=0;i<500;i++){
+                    text+="- "
+                }
+                line.text(text);
+
+            //下方操作菜单
+            var divBtn = $("<div class='divInsert'></div>");
+            var btnInsert = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>插入</button>");
+            btnInsert.attr("id","btnSplitlineInsert"+splitlineNum);
+            var btnDelete = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>删除</button>");
+            btnDelete.attr("id","btnSplitlineDelete"+splitlineNum);
+            var btnUp = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>上移</button>");
+            btnUp.attr("id","btnSplitlineUp"+splitlineNum);
+            var btnDown = $("<button type='button' class='btn btn-xs btn-info btnBorder btnMarginLeft'>下移</button>");
+            btnDown.attr("id","btnSplitlineDown"+splitlineNum);
+
+            splitlineDiv.append(line);
+            divBtn.append(btnInsert);
+            divBtn.append(btnDelete);
+            divBtn.append(btnUp);
+            divBtn.append(btnDown);
+            splitlineDiv.append(divBtn);
+
+            //插入 # 设置弹出菜单
+            btnInsert.popover({
+                trigger:"manual",
+                content:createMenu('btnSplitlineInsert'+splitlineNum),
+                container:"body",
+                placement:"bottom",
+                title:"插入类型",
+                html:"true"
+            }).bind("click", function () {
+                console.info("btnInsert click ID:" + $(this).attr("id"));
+                $(this).popover("toggle");
+            });
+            //删除 # 删除元素
+            btnDelete.bind("click",function(){
+                deleteEle("divSplitline"+splitlineNum);
+            });
+            //上移 # 元素向上移动
+            btnUp.bind("click",function () {
+                upEle("divSplitline"+splitlineNum);
+            });
+            //下移 # 元素向下移动
+            btnDown.bind("click",function () {
+                downEle("divSplitline"+splitlineNum);
+            });
+
+            if(e.attr("tag") == 0){
+                $("#divTitle").after(splitlineDiv);
+            }else{
+                $("#"+e.attr("tag")).parent().parent("div").after(splitlineDiv);
+            }
+        }
+
+    </script>
+
+    <script>
+        $(document).ready(function(){
+            //初始化
+            var div = $("<div class='btn-group'></div>");
+
+            div.append("<button id='btnAddText' tag='0' onclick='addText($(this))' type='button' class='btn btn-xs btn-default'>文字</button>");
+            div.append("<button id='btnAddImg' tag='0' onclick='addImg($(this))' type='button' class='btn btn-xs btn-default'>图片</button>");
+            div.append("<button id='btnAddGood' tag='0' onclick='addGood($(this))' type='button' class='btn btn-xs btn-default'>商品</button>");
+            div.append("<button id='btnAddVideo' tag='0' onclick='addVideo($(this))' type='button' class='btn btn-xs btn-default'>视频</button>");
+            div.append("<button id='btnAddTicket' tag='0' onclick='addTicket($(this))' type='button' class='btn btn-xs btn-default'>优惠券</button>");
+            div.append("<button id='btnAddSplitline' tag='0' onclick='AddSplitline($(this))' type='button' class='btn btn-xs btn-default'>分割线</button>");
+
+            $("#btnTitleInsert").popover({
+                trigger:"manual",
+                content:div.html(),
+                container:"body",
+                placement:"bottom",
+                title:"插入类型",
+                html:"true"
+            }).bind("click", function () {
+                $(this).popover("toggle");
+            });
+            //初始化 end
+
+        /**
+        * 模态框关闭
+        */
+        $(function () {
+            $("#myModal").on("hide.bs.modal", function () {
+                //清空模态框
+                $("#modalBody").empty();
+            });
+         });
+        /**
+         * 模态框提交更改 # 图片 # 商品
+         * */
+        $("#modalSubmit").click(function () {
+            var fromView = $("#"+$("#myModal").attr("from"));
+
+            if(fromView.parent().attr("type") == "myImg"){
+            //图片编辑模态框
+                var files = $("#inputfile").prop("files");
+                var imgUrl = $(this).parent().prev().children().next().next().children("input").val().trim();
+                if(files.length != 0 ){
+                    // 获取 window 的 URL 工具
+                    var URL = window.URL || window.webkitURL;
+                    // 通过 file 生成目标 url
+                    var imgURL = URL.createObjectURL(files[0]);
+                    //用attr将img的src属性改成获得的url
+                    fromView.attr("src",imgURL);
+                    fromView.attr("imgname",files[0].name);
+                }else{
+                    fromView.attr("src",imgUrl);
+                    fromView.removeAttr("imgname");
+                    fromView.val("");
+                }
+            }else if(fromView.parent().attr("type") == "myGood"){
+            //商品编辑模态框
+                var files = $("#inputfile").prop("files");
+                var imgUrl = $(this).parent().prev().children().next().next().children("input").val().trim();
+                if(files.length != 0 ){
+                    // 获取 window 的 URL 工具
+                    var URL = window.URL || window.webkitURL;
+                    // 通过 file 生成目标 url
+                    var imgURL = URL.createObjectURL(files[0]);
+                    //用attr将img的src属性改成获得的url
+                    fromView.children("img").attr("src",imgURL);
+                    fromView.children("img").attr("imgname",files[0].name);
+                }else{
+                    fromView.children("img").attr("src",imgUrl);
+                    fromView.children("img").removeAttr("imgname");
+                    //fromView.children("img").val("");
+                }
+                var title = $(this).parent().prev().children().next().next().next().children("input");
+                var price = title.parent().next().next().children("input");
+                console.info("title:" + title.val().trim()+"| price:" + price.val().trim());
+                if(title.val().trim() != ""){
+                    fromView.children().children().text(title.val().trim());
+                }
+                if(price.val().trim() != ""){
+                    fromView.children().children().next().text("¥"+price.val().trim());
+                }
+            }else if(fromView.parent().attr("type") == "myVideo"){
+                var videoUrl = $(this).parent().prev().children().next().children("input").val().trim();
+                if(fromView.is("p")){
+                    var video = $("<video src='' width='640' height='360' controls preload></video>");
+                        video.attr({"src":videoUrl,"id":'video'+fromView.attr("order")});
+                    fromView.after(video);
+                    fromView.remove();
+                }else{
+                    fromView.attr("src",videoUrl);
+                }
+            }else if(fromView.attr("type") == "myTicket"){
+                var ticketValue = $(this).parent().prev().children().next().children("input").val().trim();
+                var ticketLimit = $(this).parent().prev().children().next().next().children("input").val().trim();
+                var ticketUrl = $(this).parent().prev().children().next().next().next().children("input").val().trim();
+
+                var s = fromView.attr("id");
+                var n = s.substr(s.length-1);
+                if(ticketValue != ""){
+                    $("#ticketValue"+n).text("¥"+ticketValue);
+                }
+                if(ticketLimit != ""){
+                    $("#ticketLimit"+n).text("满¥"+ticketLimit+"可用");
+                }
+                if(ticketUrl != ""){
+                    $("#ticketValue"+n).parent().parent().unbind("click");
+                    var urlStart = ticketUrl.indexOf("http://");
+                    if (urlStart != 0){
+                        ticketUrl = "http://"+ticketUrl;
+                    }
+                    $("#ticketValue"+n).parent().parent().attr("url",ticketUrl);
+                    $("#ticketValue"+n).parent().parent().bind("click",function () {
+                        window.open(ticketUrl);
+                    });
+                }
+            }
+            //隐藏模态框
+            $("#myModal").modal("hide");
+        });
+        /**
+         * 保存
+         * */
+        $("#btnSave").click(function () {
+            save_record();
+        });
+        /**
+         *提交
+         * */
+         $("#btnSubmit").click(function(){
+         	
+         });
+
+        });//end ready
+
+        /**
+         *将页面内容保存到新的html文件
+         */
+        function save_record(){
+            var content = "<!DOCTYPE html>";
+
+            var box = $("<html></html>");
+            //html
+            var html = $("<html></html>");
+            html.attr("lang","en");
+            //head
+            var head = $("<head></head>");
+            head.append("<meta charset=\"UTF-8\">");
+            head.append("<title>Title</title>");
+            head.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+            head.append("<link rel=\"stylesheet\" href=\"https:\/\/cdn.static.runoob.com\/libs\/bootstrap\/3.3.7\/css\/bootstrap.min.css\">");
+            head.append("<script src=\"https:\/\/cdn.static.runoob.com\/libs\/jquery\/2.1.1\/jquery.min.js\"><\/script>");
+            head.append("<script src=\"https:\/\/cdn.static.runoob.com\/libs\/jquery\/2.1.1\/jquery.min.js\"><\/script>");
+            head.append("<script src='../js/my.js'><\/script>");
+            head.append("<style>.pStyle{text-indent:2em;}"
+                                + ".imgDiv{text-align:center;}"
+                                + ".displayInline{display:inline-block;}"
+                                + ".divTextLeft{text-align:left;}"
+                                + "</style>");
+            //body
+            var body = $("<body></body>");
+            //container
+            var divContainer = $("<div class=\"container\"></div>");
+            //row
+            var divRow = $("<div class=\"row clearfix\"></div>");
+            //col
+            var divCol = $("<div class=\"col-md-12 column\"></div>");
+            //封装
+
+            var eles = $("#divContentTwo").children();
+            console.info("num:" + eles.length);
+            if(eles.lengthCount == 0){
+                alert("未编辑新内容");
+                return false;
+            }else{
+                for(var i=0; i<eles.length; i++){
+                    var e = $(eles[i]);
+                    var type = e.attr("type");
+                    console.info("type:" + type);
+                    if (i == 0){
+                        var title = $("<h3 class='text-center'></h3>");
+                            title.text(e.children("input").val());
+                        divCol.append(title);
+                    }else if(type == "myText"){
+                        var paragraph = $("<p class='pStyle'></p>");
+                            paragraph.text(e.children("textarea").val());
+                        divCol.append(paragraph);
+                    }else if(type == "myImg"){
+                        var imgDiv = $("<div class='col-md-12 column text-center'></div>");
+                        var img = $("<img alt='140x140' src='' class='img-thumbnail'/>");
+                        if(typeof(e.children("img").attr("imgname")) == "undefined"){
+                            img.attr("src",e.children("img").attr("src"));
+                        }else{
+                            img.attr("src","images/"+e.children("img").attr("imgname"));
+                        }
+                        imgDiv.append(img);
+                        divCol.append(imgDiv);
+                    }else if(type == "myGood"){
+                        var imgT = e.children().children("img").clone();
+                        if(typeof(imgT.attr("imgname")) != "undefined"){
+                            imgT.attr("src","images/"+imgT.attr("imgname"));
+                        }
+                        var goodDiv = $("<div class='col-md-12 column text-center' style='background: #F7F7F7'></div>");
+
+                        goodDiv.append(imgT);
+                        goodDiv.append(e.children().children("div").clone());
+                        divCol.append(goodDiv);
+                    }else if(type == "myVideo"){
+                        if(e.children().is("video")){
+                            var divVideo = $("<div class='divBorder imgDiv'></div>");
+                                divVideo.append(e.children("video").clone());
+                            divCol.append(divVideo);
+                            head.append("<script src='//api.html5media.info/1.1.8/html5media.min.js'><\/script>")
+                        }
+                    }else if(type == "myTicket"){
+                        var div = $("<div style='background: #E34242;width: 80%;margin-left: 10%;border-radius:8px;padding: 5%;}' class='img-rounded imgDiv'></div>");
+                            div.attr("id",e.children().attr("id"));
+                            div.attr("onclick","getTicket('"+e.children().attr("url")+"')");
+                        var icon = e.children().children("img").clone();
+                            icon.attr("src","images/ticket_icon.png");
+                        div.append(e.children().children("div").clone());
+                        div.append(icon);
+                        var sc = $("<script>"+"function getTicket(url) {window.open(url); }"+"<\/script>");
+                        head.append(sc);
+                        divCol.append(div);
+                    }else if(type == "mySplitline"){
+                        var splitlineDiv = $("<div class='imgDiv'></div>");
+                        var line = e.children("p").clone();
+                            line.attr("style","width:100%;white-space:nowrap;overflow:hidden;margin-left: 5px;margin-right: 5px;margin-top:5px;margin-bottom:5px;");
+                        splitlineDiv.append(line);
+                        divCol.append(splitlineDiv);
+                    }
+                }
+            }
+            divRow.append(divCol);
+            divContainer.append(divRow);
+            body.append(divContainer);
+
+            html.append(head);
+            html.append(body)
+
+            box.append(html);
+
+            content= content + box.html();
+            //content = "baocunceshi";
+            var blob = new Blob([content], {type: "text/plain;charset=utf-8"});
+            saveAs(blob, getTimestamp()+".html");//saveAs(blob,filename)
+        }
+        /**
+         *获取当前时间戳
+         */
+        function getTimestamp(){
+            function p(s) {
+                return s < 10 ? '0' + s: s;
+            }
+            var myDate = new Date();
+            //获取当前年
+            var year=myDate.getFullYear();
+            //获取当前月
+            var month=myDate.getMonth()+1;
+            //获取当前日
+            var date=myDate.getDate();
+            var h=myDate.getHours();       //获取当前小时数(0-23)
+            var m=myDate.getMinutes();     //获取当前分钟数(0-59)
+            var s=myDate.getSeconds();
+            var now=year+p(month)+p(date)+p(h)+p(m)+p(s);
+            return now;
+        }
+    </script>
+</head>
+<body>
+<h2>新建文章</h2>
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h3 class="panel-title">编辑文章</h3>
+        <br>
+        <button id="btnSave" type="button" class="btn btn-default">保存</button>
+        <button id="btnSubmit" type="button" class="btn btn-default">提交</button>
+    </div>
+    <div class="panel-body">
+        <div class="container">
+            <div class="row clearfix">
+                <div class="col-md-12 column" id='divContentTwo'>
+                    <!-- 标题 -->
+                    <div id="divTitle" class="divBorder" type="myTitle">
+                        <input type="text" style="text-align:center; vertical-align:middle" class="form-control" placeholder="请输入标题">
+                        <div class="divInsert">
+                            <button id="btnTitleInsert" type="button"class="btn btn-xs btn-info btnBorder">插入</button>
+                        </div>
+                    </div>
+                    <!-- 视频 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog" id="modalDialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                    &times;
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    选择图片
+                </h4>
+            </div>
+            <div class="modal-body" id="modalBody">
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="modalSubmit">提交更改</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal -->
+</div>
+</body>
+</html>
